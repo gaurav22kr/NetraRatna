@@ -35,6 +35,11 @@ env/
 *.keras
 *.onnx
 
+# Vessel segmentation weights tracked with Git LFS
+!models/
+!models/vessel_segmentation/
+!models/vessel_segmentation/*.pth
+
 .cache/
 .cache/
 huggingface/

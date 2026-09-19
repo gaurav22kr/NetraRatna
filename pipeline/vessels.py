@@ -11,6 +11,7 @@ from fundus_image_toolbox.vessel_segmentation import (
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
+VESSEL_MODELS_DIR = PROJECT_ROOT / "models" / "vessel_segmentation"
 
 VESSEL_SIZE = (512, 512)
 VESSEL_THRESHOLD = 0.5
@@ -45,13 +46,47 @@ def load_vessel_models(device=None):
     """
     Load the pretrained FR-U-Net vessel segmentation ensemble.
 
-    The Fundus Image Toolbox downloads/caches the five pretrained
-    FR-U-Net models automatically.
+    The five pretrained FR-U-Net model weights are stored inside
+    the NetraRatna repository under:
+
+        models/vessel_segmentation/
+
+    This allows the application to work on Streamlit Cloud without
+    depending on a machine-specific FIT cache directory.
     """
     if device is None:
         device = get_device()
 
-    models = load_segmentation_ensemble(device=device)
+    if not VESSEL_MODELS_DIR.exists():
+        raise FileNotFoundError(
+            "Vessel segmentation model directory was not found: "
+            f"{VESSEL_MODELS_DIR}"
+        )
+
+    expected_weights = [
+        "FRUNet_0.pth",
+        "FRUNet_1.pth",
+        "FRUNet_2.pth",
+        "FRUNet_3.pth",
+        "FRUNet_4.pth",
+    ]
+
+    missing_weights = [
+        filename
+        for filename in expected_weights
+        if not (VESSEL_MODELS_DIR / filename).exists()
+    ]
+
+    if missing_weights:
+        raise FileNotFoundError(
+            "Missing FR-U-Net vessel model weights: "
+            + ", ".join(missing_weights)
+        )
+
+    models = load_segmentation_ensemble(
+        device=device,
+        models_dir=VESSEL_MODELS_DIR,
+    )
 
     return models
 
@@ -81,7 +116,6 @@ def save_vessel_overlay(image, mask):
     OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
 
     original = image.convert("RGB")
-
     original_array = np.asarray(original).copy()
 
     mask_array = np.asarray(mask) > 0.5
@@ -99,7 +133,10 @@ def save_vessel_overlay(image, mask):
     vessel_pixels = mask_array
 
     # Add a bright vessel highlight.
-    overlay[vessel_pixels] = np.array([255, 255, 0], dtype=np.uint8)
+    overlay[vessel_pixels] = np.array(
+        [255, 255, 0],
+        dtype=np.uint8,
+    )
 
     # Blend original and highlighted image.
     blended = (
@@ -197,7 +234,10 @@ def segment_vessels(
     )
 
     mask_path = save_vessel_mask(binary_mask)
-    overlay_path = save_vessel_overlay(pil_image, binary_mask)
+    overlay_path = save_vessel_overlay(
+        pil_image,
+        binary_mask,
+    )
 
     return {
         "mask": binary_mask,
@@ -213,7 +253,7 @@ def segment_vessels(
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("DR-XPLAIN — VESSEL SEGMENTATION TEST")
+    print("NETRARATNA — VESSEL SEGMENTATION TEST")
     print("=" * 60)
 
     test_image_path = PROJECT_ROOT / "test_data" / "test_fundus.jpg"
@@ -235,11 +275,15 @@ if __name__ == "__main__":
 
     print(f"Device: {device}")
     print()
+    print("Vessel model directory:")
+    print(VESSEL_MODELS_DIR)
+    print()
     print("Loading FR-U-Net ensemble...")
 
     models = load_vessel_models(device=device)
 
-    print(f"Loaded {len(models)} vessel models.")
+    print("FR-U-Net ensemble loaded successfully.")
+
     print()
     print("Running vessel segmentation...")
 
@@ -250,12 +294,10 @@ if __name__ == "__main__":
     )
 
     print()
-    print(f"Mask shape: {result['mask'].shape}")
+    print("Vessel segmentation completed.")
     print(f"Vessel pixels: {result['vessel_pixels']}")
     print(f"Vessel fraction: {result['vessel_fraction']:.4f}")
-    print(f"Mask saved: {result['mask_path']}")
-    print(f"Overlay saved: {result['overlay_path']}")
-
+    print(f"Mask: {result['mask_path']}")
+    print(f"Overlay: {result['overlay_path']}")
     print()
-    print("Vessel segmentation test: SUCCESS")
     print("=" * 60)
