@@ -1,0 +1,17 @@
+streamlit
+numpy
+pillow
+opencv-python-headless
+matplotlib
+scikit-image
+pandas
+requests
+safetensors
+huggingface_hub
+keras
+tensorflow
+torch
+torchvision
+fundus-lesions-toolkit
+torchseg
+fundus_image_toolbox
